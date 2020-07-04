@@ -1,0 +1,1 @@
+Easily enough, since flag is already being read and pushed to stack, it can be leaked as it resides on 9th index.
